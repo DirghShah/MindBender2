@@ -2,8 +2,8 @@ import SwiftUI
 
 public struct RootView: View {
     @EnvironmentObject var viewModel: PlaygroundViewModel
-    @State private var showCompare = false
     @State private var showSettings = false
+    @State private var confirmClear = false
 
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var sizeClass
@@ -16,18 +16,10 @@ public struct RootView: View {
             .sheet(isPresented: $showSettings) {
                 SettingsSheet().environmentObject(viewModel)
             }
-            #if os(iOS)
-            .fullScreenCover(isPresented: $showCompare) {
-                CompareView(onClose: { showCompare = false })
-                    .environmentObject(viewModel)
+            .confirmationDialog("Start a new chat?", isPresented: $confirmClear) {
+                Button("Clear chat and preview", role: .destructive) { viewModel.clearChat() }
+                Button("Cancel", role: .cancel) {}
             }
-            #else
-            .sheet(isPresented: $showCompare) {
-                CompareView(onClose: { showCompare = false })
-                    .environmentObject(viewModel)
-                    .frame(minWidth: 900, minHeight: 600)
-            }
-            #endif
     }
 
     @ViewBuilder
@@ -46,20 +38,16 @@ public struct RootView: View {
     private var compactTabs: some View {
         TabView {
             NavigationStack {
-                TargetPane(showSettings: $showSettings, showCompare: $showCompare)
-                    .navigationTitle("Target")
-            }
-            .tabItem { Label("Target", systemImage: "photo") }
-
-            NavigationStack {
                 ChatPane()
                     .navigationTitle("Chat")
+                    .toolbar { toolbarItems }
             }
             .tabItem { Label("Chat", systemImage: "text.bubble") }
 
             NavigationStack {
                 PreviewPane()
                     .navigationTitle("Preview")
+                    .toolbar { toolbarItems }
             }
             .tabItem { Label("Preview", systemImage: "play.rectangle") }
         }
@@ -67,13 +55,32 @@ public struct RootView: View {
 
     private var splitView: some View {
         NavigationSplitView {
-            TargetPane(showSettings: $showSettings, showCompare: $showCompare)
-                .navigationSplitViewColumnWidth(min: 220, ideal: 280, max: 360)
-        } content: {
             ChatPane()
                 .navigationSplitViewColumnWidth(min: 320, ideal: 420)
+                .toolbar { toolbarItems }
+                .navigationTitle("MindBender")
         } detail: {
             PreviewPane()
+                .navigationTitle("Preview")
+        }
+    }
+
+    @ToolbarContentBuilder
+    private var toolbarItems: some ToolbarContent {
+        ToolbarItem(placement: .primaryAction) {
+            Button { confirmClear = true } label: {
+                Image(systemName: "square.and.pencil")
+            }
+            .help("New chat")
+            .accessibilityLabel("New chat")
+            .disabled(viewModel.messages.isEmpty)
+        }
+        ToolbarItem(placement: .primaryAction) {
+            Button { showSettings = true } label: {
+                Image(systemName: "gearshape")
+            }
+            .help("Settings")
+            .accessibilityLabel("Settings")
         }
     }
 }

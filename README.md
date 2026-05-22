@@ -1,12 +1,13 @@
 # MindBender — Prompting Playground for Kids
 
-A classroom playground where students prompt an LLM to write HTML/CSS that
-recreates a target screen the teacher shows them. Live preview updates as they
-chat. Teacher walks the room and picks whose page got closest.
+A classroom playground where students prompt an LLM to write HTML/CSS and see
+the result render live. The teacher shows a target screen (projector,
+printout, slide — outside the app) and students compete to get their preview
+as close to it as possible.
 
-- **App**: Multiplatform SwiftUI (macOS, iPadOS, iOS) with a chat panel, a target
-  image panel, and a `WKWebView` live preview.
-- **Backend**: A tiny Vapor (Swift) proxy that holds the Groq API key and
+- **App**: Multiplatform SwiftUI (macOS, iPadOS, iOS). Two panes only — chat
+  on the left, live `WKWebView` preview on the right.
+- **Backend**: A small Vapor (Swift) proxy that holds the Groq API key and
   rate-limits per IP. Runs on the teacher's laptop.
 - **LLM**: [Groq](https://console.groq.com) free tier, model
   `llama-3.3-70b-versatile`.
@@ -17,9 +18,9 @@ chat. Teacher walks the room and picks whose page got closest.
 Package.swift                Swift package: App, Shared, MindBenderProxy
 Sources/
   Shared/                    DTOs, system prompt, HTML extractor
-  App/                       SwiftUI views + view model (imported by Xcode shim)
-    Panes/                   Target / Chat / Preview / Compare
-    Platform/                #if os splits live ONLY here
+  App/                       SwiftUI views + view model
+    Panes/                   Chat / Preview
+    Platform/                WebView wrapper (only #if os splits live here)
   MindBenderProxy/           Vapor server
 Tests/
   SharedTests/               HTMLExtractor unit tests
@@ -37,7 +38,7 @@ swift run MindBenderProxy serve
 
 By default it binds `0.0.0.0:8080`. Find your laptop's LAN IP (System
 Settings → Network) — students will point their iPads at
-`http://YOUR_LAN_IP:8080`.
+`http://YOUR_LAN_IP:8080` via the Settings gear in the app.
 
 Smoke test:
 
@@ -47,48 +48,46 @@ curl -X POST http://localhost:8080/chat \
   -d '{"messages":[{"role":"user","content":"make a red button centered on the page"}]}'
 ```
 
-You should get JSON back with a `content` field containing a fenced HTML block.
+Returns JSON with a `content` field containing a fenced HTML block.
 
 Rate limit defaults: bucket of 10, refills 0.2 tokens/sec per IP (≈12 requests
-per minute sustained, burst of 10). Eleventh rapid request returns `429` with a
-`Retry-After` header.
+per minute sustained, burst of 10). Eleventh rapid request returns `429` with
+`Retry-After`.
 
 ## 2. Build the app (Xcode, on a Mac)
 
-The Swift package handles the proxy. The iOS/iPadOS/macOS app needs an Xcode
-project for signing and bundle resources. The repo ships everything the project
-needs except the `.xcodeproj` itself — create it once:
+The Swift package builds the proxy. The iOS/iPadOS/macOS app needs an Xcode
+project for signing and bundle resources. Create it once:
 
 1. In Xcode: **File → New → Project → Multiplatform → App**.
-2. Product name: `MindBenderApp`. Bundle ID: anything you like (e.g.
+2. Product name: `MindBenderApp`. Bundle ID: anything (e.g.
    `com.yourname.mindbender`). Save it into the existing
    `MindBenderApp/` folder, replacing the default Swift entry file with the
    provided `MindBenderApp/MindBenderApp/MindBenderApp.swift`.
 3. **File → Add Package Dependencies → Add Local…** → pick the repo root
    (the folder containing `Package.swift`). Add the **App** library product to
    the target.
-4. In **Target → Info**: set Info.plist source to
+4. In **Target → Info**: point Info.plist at
    `MindBenderApp/MindBenderApp/Info.plist`.
-5. In **Target → Signing & Capabilities**:
-   - Turn on **App Sandbox** for the macOS destination.
-   - Use the provided `MindBenderApp.entitlements`.
-   - Enable **Outgoing Connections (Client)** — already in the entitlements file.
+5. In **Target → Signing & Capabilities** (Mac destination): enable
+   **App Sandbox**, use the provided `MindBenderApp.entitlements`,
+   and make sure **Outgoing Connections (Client)** is on.
 6. Build and run on My Mac, iPad Simulator, iPhone Simulator.
 
-The first time an iPad on the LAN hits the teacher's laptop, iOS will prompt
-"Allow MindBender to find devices on your local network" — tap Allow.
+First time an iPad on the LAN hits the laptop, iOS prompts "Allow MindBender
+to find devices on your local network" — tap Allow.
 
 ## 3. Use it in class
 
-1. Teacher loads a target image via the picker (or drags onto the Mac app).
-2. Student types a prompt: *"a blue header at the top that says Hello, with
-   three red boxes below in a row"*.
+1. Teacher shows the target screen on the projector / hands out a printout.
+2. Each student opens the app and types a prompt:
+   *"a blue header at the top that says Hello, with three red boxes in a row
+   below it"*.
 3. Live preview updates in 1–3 seconds.
-4. Iterate: *"make the boxes have rounded corners"*, *"center everything"*.
-5. Teacher taps **Compare** → full-screen split of target image vs preview, and
-   walks the room.
-6. **New Round** clears the chat. Either keep the same target or swap in a
-   harder one.
+4. Iterate: *"make the boxes rounded"*, *"center everything"*, …
+5. Teacher walks around comparing each device's preview to the target and
+   picks whoever got closest.
+6. **New chat** (top-right) wipes the chat and preview to start a new round.
 
 ## Tests
 
@@ -96,23 +95,11 @@ The first time an iPad on the LAN hits the teacher's laptop, iOS will prompt
 swift test
 ```
 
-Runs `HTMLExtractorTests` and `RateLimiterTests` (the proxy boots via
-`XCTVapor` so no live Groq call is made).
-
-## Gotchas (worth knowing if something breaks)
-
-- **`http://` URLs from device builds** need `NSAllowsLocalNetworking` in
-  Info.plist — already set.
-- **Local Network prompt on iOS 14+** requires `NSLocalNetworkUsageDescription`
-  — already set. Without it, requests silently fail.
-- **macOS sandbox** requires `com.apple.security.network.client` — already set.
-- **`WKWebView` reloads on every state tick** unless we diff first — `WebView`
-  already does that via its `Coordinator`.
-- **Groq rate limits** surface as 429s with a friendly toast.
+Runs `HTMLExtractorTests` and `RateLimiterTests`.
 
 ## What's intentionally NOT in v1
 
-- No streaming (Groq is fast enough). `/chat/stream` is a future hook.
-- No accounts, no persistence — quit the app, lose the history.
-- No automatic image-vs-preview similarity score. Teacher eyeballs it.
-- No multiplayer/room concept. Each device is a single seat.
+- No target image in the app — teacher shows it separately.
+- No streaming. Groq is fast enough that a 1–3s spinner is fine.
+- No accounts, no persistence. Quit the app, lose history.
+- No multiplayer / room concept. Each device is a single seat.

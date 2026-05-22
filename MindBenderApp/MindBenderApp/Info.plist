@@ -32,9 +32,6 @@
     <key>NSLocalNetworkUsageDescription</key>
     <string>MindBender talks to your teacher's playground server on the local network so your prompts can be turned into web pages.</string>
 
-    <key>NSPhotoLibraryUsageDescription</key>
-    <string>MindBender needs access to your photos so you can pick the target screen to recreate.</string>
-
     <key>UILaunchScreen</key>
     <dict/>
 

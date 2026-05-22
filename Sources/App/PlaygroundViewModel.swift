@@ -3,7 +3,6 @@ import Shared
 
 @MainActor
 public final class PlaygroundViewModel: ObservableObject {
-    @Published public var targetImage: Data?
     @Published public var messages: [ChatMessage] = []
     @Published public var extractedHTML: String = PlaygroundViewModel.emptyHTML
     @Published public var isSending: Bool = false
@@ -49,17 +48,9 @@ public final class PlaygroundViewModel: ObservableObject {
         }
     }
 
-    public func newRound(keepTarget: Bool) {
+    public func clearChat() {
         messages.removeAll()
         extractedHTML = Self.emptyHTML
         lastError = nil
-        if !keepTarget { targetImage = nil }
-    }
-
-    public func resetAll() {
-        messages.removeAll()
-        extractedHTML = Self.emptyHTML
-        lastError = nil
-        targetImage = nil
     }
 }
