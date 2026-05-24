@@ -32,6 +32,28 @@ public enum HTMLExtractor {
         """
     }
 
+    /// Remove all fenced code blocks from a reply, leaving only the prose.
+    /// Used to render assistant messages in the chat without dumping HTML at the kids.
+    public static func stripFences(from reply: String) -> String {
+        let pattern = "```[a-zA-Z]*\\s*\\n[\\s\\S]*?```"
+        let stripped: String = {
+            guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else {
+                return reply
+            }
+            let ns = reply as NSString
+            return regex.stringByReplacingMatches(
+                in: reply,
+                options: [],
+                range: NSRange(location: 0, length: ns.length),
+                withTemplate: ""
+            )
+        }()
+        let collapsed = stripped
+            .replacingOccurrences(of: "\n{3,}", with: "\n\n", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return collapsed.isEmpty ? "✨ Updated the preview." : collapsed
+    }
+
     private static func looksLikeHTML(_ s: String) -> Bool {
         let lower = s.lowercased()
         return lower.contains("<!doctype html") || lower.contains("<html")
