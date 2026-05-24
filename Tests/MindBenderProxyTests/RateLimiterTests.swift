@@ -15,18 +15,25 @@ final class RateLimiterTests: XCTestCase {
     func testRefillsOverTime() async {
         let limiter = RateLimiter(capacity: 2, refillPerSecond: 1)
         let start = Date()
-        XCTAssertNil(await limiter.consume(key: "k", now: start))
-        XCTAssertNil(await limiter.consume(key: "k", now: start))
-        XCTAssertNotNil(await limiter.consume(key: "k", now: start))
+        let first = await limiter.consume(key: "k", now: start)
+        XCTAssertNil(first)
+        let second = await limiter.consume(key: "k", now: start)
+        XCTAssertNil(second)
+        let third = await limiter.consume(key: "k", now: start)
+        XCTAssertNotNil(third)
         let later = start.addingTimeInterval(1.0)
-        XCTAssertNil(await limiter.consume(key: "k", now: later))
+        let afterRefill = await limiter.consume(key: "k", now: later)
+        XCTAssertNil(afterRefill)
     }
 
     func testBucketsAreIsolatedPerKey() async {
         let limiter = RateLimiter(capacity: 1, refillPerSecond: 0.1)
-        XCTAssertNil(await limiter.consume(key: "a"))
-        XCTAssertNil(await limiter.consume(key: "b"))
-        XCTAssertNotNil(await limiter.consume(key: "a"))
+        let a1 = await limiter.consume(key: "a")
+        XCTAssertNil(a1)
+        let b1 = await limiter.consume(key: "b")
+        XCTAssertNil(b1)
+        let a2 = await limiter.consume(key: "a")
+        XCTAssertNotNil(a2)
     }
 
     func testEvictionRemovesIdleBuckets() async {
