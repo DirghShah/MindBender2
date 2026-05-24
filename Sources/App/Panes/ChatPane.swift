@@ -11,21 +11,21 @@ public struct ChatPane: View {
     public var body: some View {
         VStack(spacing: 0) {
             messageList
-            Divider()
             inputBar
         }
-        .safeAreaInset(edge: .bottom, spacing: 0) { Color.clear.frame(height: 0) }
     }
 
     private var messageList: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 12) {
-                    if viewModel.messages.isEmpty {
+                LazyVStack(alignment: .leading, spacing: 16) {
+                    if viewModel.messages.isEmpty && !viewModel.isSending {
                         emptyState
+                            .frame(maxWidth: .infinity)
+                            .padding(.top, 80)
                     } else {
                         ForEach(viewModel.messages) { msg in
-                            MessageBubble(message: msg)
+                            MessageRow(message: msg)
                                 .id(msg.id)
                         }
                     }
@@ -36,7 +36,8 @@ public struct ChatPane: View {
                         ErrorRow(message: err)
                     }
                 }
-                .padding()
+                .padding(.horizontal, 12)
+                .padding(.vertical, 12)
             }
             .onChange(of: viewModel.messages.count) { _, _ in
                 if let last = viewModel.messages.last {
@@ -47,43 +48,63 @@ public struct ChatPane: View {
     }
 
     private var emptyState: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Try a prompt like:")
-                .font(.headline)
-            ForEach([
-                "Make a big blue button in the middle of the page that says Hello.",
-                "Three red boxes in a row with rounded corners.",
-                "A simple login form with a username and password field."
-            ], id: \.self) { example in
-                Button { draft = example } label: {
-                    Text("• \(example)")
-                        .multilineTextAlignment(.leading)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
-            }
+        VStack(spacing: 10) {
+            Image(systemName: "sparkles")
+                .font(.system(size: 28, weight: .light))
+                .foregroundStyle(IDETheme.placeholder)
+            Text("Describe what you want to build.")
+                .font(.system(size: 13))
+                .foregroundStyle(IDETheme.placeholder)
         }
-        .padding(8)
     }
 
     private var inputBar: some View {
-        HStack(alignment: .bottom, spacing: 8) {
-            TextField("Describe what you want to build…", text: $draft, axis: .vertical)
-                .lineLimit(1...5)
-                .textFieldStyle(.roundedBorder)
-                .focused($inputFocused)
-                .onSubmit(send)
+        VStack(spacing: 0) {
+            Rectangle().fill(IDETheme.divider).frame(height: 1)
+            HStack(alignment: .bottom, spacing: 8) {
+                TextField("", text: $draft, axis: .vertical)
+                    .lineLimit(1...6)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 13))
+                    .foregroundStyle(IDETheme.bubbleText)
+                    .focused($inputFocused)
+                    .onSubmit(send)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 8)
+                    .background(IDETheme.inputBackground)
+                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .strokeBorder(IDETheme.inputBorder, lineWidth: 1)
+                    )
+                    .overlay(alignment: .topLeading) {
+                        if draft.isEmpty {
+                            Text("Describe what you want to build…")
+                                .font(.system(size: 13))
+                                .foregroundStyle(IDETheme.placeholder)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 8)
+                                .allowsHitTesting(false)
+                        }
+                    }
 
-            Button(action: send) {
-                Image(systemName: viewModel.isSending ? "ellipsis" : "paperplane.fill")
-                    .font(.title3)
-                    .padding(8)
+                Button(action: send) {
+                    Image(systemName: viewModel.isSending ? "ellipsis" : "arrow.up")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 32, height: 32)
+                        .background(canSend ? Color.accentColor : Color.gray.opacity(0.35))
+                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                }
+                .buttonStyle(.plain)
+                .disabled(!canSend)
             }
-            .buttonStyle(.borderedProminent)
-            .disabled(viewModel.isSending || draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            .padding(10)
         }
-        .padding(8)
+    }
+
+    private var canSend: Bool {
+        !viewModel.isSending && !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     private func send() {
@@ -93,23 +114,24 @@ public struct ChatPane: View {
     }
 }
 
-private struct MessageBubble: View {
+private struct MessageRow: View {
     let message: ChatMessage
 
     var body: some View {
-        HStack(alignment: .top, spacing: 8) {
-            if message.role == .user { Spacer(minLength: 32) }
-            VStack(alignment: .leading, spacing: 4) {
-                Text(roleLabel)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Text(displayContent)
-                    .textSelection(.enabled)
-                    .padding(10)
-                    .background(bubbleColor)
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
-            }
-            if message.role == .assistant { Spacer(minLength: 32) }
+        VStack(alignment: .leading, spacing: 4) {
+            Text(roleLabel)
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(IDETheme.roleLabel)
+                .textCase(.uppercase)
+                .tracking(0.5)
+            Text(displayContent)
+                .font(.system(size: 13))
+                .foregroundStyle(IDETheme.bubbleText)
+                .textSelection(.enabled)
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(bubbleColor)
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         }
     }
 
@@ -123,16 +145,16 @@ private struct MessageBubble: View {
     private var roleLabel: String {
         switch message.role {
         case .user: return "You"
-        case .assistant: return "Assistant"
+        case .assistant: return "MindBender"
         case .system: return "System"
         }
     }
 
     private var bubbleColor: Color {
         switch message.role {
-        case .user: return Color.accentColor.opacity(0.18)
-        case .assistant: return Color.gray.opacity(0.12)
-        case .system: return Color.yellow.opacity(0.15)
+        case .user: return IDETheme.userBubble
+        case .assistant: return IDETheme.assistantBubble
+        case .system: return Color.yellow.opacity(0.12)
         }
     }
 }
@@ -141,19 +163,27 @@ private struct ThinkingRow: View {
     var body: some View {
         HStack(spacing: 8) {
             ProgressView().controlSize(.small)
-            Text("Thinking…").foregroundStyle(.secondary)
+            Text("Thinking…")
+                .font(.system(size: 12))
+                .foregroundStyle(IDETheme.placeholder)
         }
-        .padding(.leading, 8)
+        .padding(.horizontal, 4)
+        .padding(.vertical, 6)
     }
 }
 
 private struct ErrorRow: View {
     let message: String
     var body: some View {
-        Label(message, systemImage: "exclamationmark.triangle.fill")
-            .foregroundStyle(.red)
-            .padding(8)
-            .background(Color.red.opacity(0.08))
-            .clipShape(RoundedRectangle(cornerRadius: 8))
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(.orange)
+            Text(message)
+                .font(.system(size: 12))
+                .foregroundStyle(IDETheme.bubbleText)
+        }
+        .padding(10)
+        .background(Color.orange.opacity(0.12))
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
 }
