@@ -103,13 +103,20 @@ private struct MessageBubble: View {
                 Text(roleLabel)
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                Text(message.content)
+                Text(displayContent)
                     .textSelection(.enabled)
                     .padding(10)
                     .background(bubbleColor)
                     .clipShape(RoundedRectangle(cornerRadius: 10))
             }
             if message.role == .assistant { Spacer(minLength: 32) }
+        }
+    }
+
+    private var displayContent: String {
+        switch message.role {
+        case .assistant: return HTMLExtractor.stripFences(from: message.content)
+        case .user, .system: return message.content
         }
     }
 
