@@ -55,50 +55,17 @@ public struct SettingsSheet: View {
     @ViewBuilder
     private var usageSection: some View {
         if let usage {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text("\(usage.used.formatted()) / \(usage.limit.formatted()) tokens")
-                        .font(.system(.body, design: .monospaced))
-                    Spacer()
-                    Text("\(usage.remaining.formatted()) left")
-                        .foregroundStyle(.secondary)
-                        .font(.callout)
-                }
-                ProgressView(value: progressValue(usage))
-                    .tint(progressTint(usage))
-            }
-            .padding(.vertical, 4)
+            Text("\(usage.used.formatted()) / \(usage.limit.formatted())")
+                .font(.system(.body, design: .monospaced))
         } else if isLoadingUsage {
-            HStack {
-                ProgressView().controlSize(.small)
-                Text("Loading…").foregroundStyle(.secondary)
-            }
-        } else if let usageError {
-            Text(usageError)
-                .foregroundStyle(.red)
-                .font(.callout)
+            Text("Loading…").foregroundStyle(.secondary)
+        } else if usageError != nil {
+            Text("Not available").foregroundStyle(.secondary)
         } else {
-            Text("No usage data yet.").foregroundStyle(.secondary)
+            Text("—").foregroundStyle(.secondary)
         }
 
-        Button {
-            loadUsage()
-        } label: {
-            Label("Refresh", systemImage: "arrow.clockwise")
-        }
-        .disabled(isLoadingUsage)
-    }
-
-    private func progressValue(_ u: UsageResponse) -> Double {
-        guard u.limit > 0 else { return 0 }
-        return min(1.0, Double(u.used) / Double(u.limit))
-    }
-
-    private func progressTint(_ u: UsageResponse) -> Color {
-        let p = progressValue(u)
-        if p >= 0.9 { return .red }
-        if p >= 0.7 { return .orange }
-        return .green
+        Button("Refresh", action: loadUsage).disabled(isLoadingUsage)
     }
 
     private func loadUsage() {
