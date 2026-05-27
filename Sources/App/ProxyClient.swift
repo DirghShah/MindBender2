@@ -3,6 +3,7 @@ import Shared
 
 public enum ProxyError: LocalizedError {
     case rateLimited(retryAfter: Int)
+    case refused(String)
     case badResponse(status: Int, body: String)
     case transport(String)
     case decoding(String)
@@ -10,11 +11,17 @@ public enum ProxyError: LocalizedError {
     public var errorDescription: String? {
         switch self {
         case .rateLimited(let s): return "Too many tries — wait \(s)s and try again."
+        case .refused(let msg): return msg
         case .badResponse(let code, let body): return "Server error \(code): \(body)"
         case .transport(let m): return "Network error: \(m)"
         case .decoding(let m): return "Could not read server reply: \(m)"
         }
     }
+}
+
+private struct VaporErrorEnvelope: Decodable {
+    let error: Bool
+    let reason: String
 }
 
 public actor ProxyClient {
@@ -58,6 +65,10 @@ public actor ProxyClient {
             throw ProxyError.rateLimited(retryAfter: retry)
         }
         guard (200..<300).contains(http.statusCode) else {
+            // Vapor returns errors as {"error": true, "reason": "..."}; surface the reason if present.
+            if let envelope = try? JSONDecoder().decode(VaporErrorEnvelope.self, from: data) {
+                throw ProxyError.refused(envelope.reason)
+            }
             let body = String(data: data, encoding: .utf8) ?? "<binary>"
             throw ProxyError.badResponse(status: http.statusCode, body: body)
         }
