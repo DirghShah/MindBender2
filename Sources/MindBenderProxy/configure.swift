@@ -36,5 +36,15 @@ public func configure(_ app: Application) async throws {
     app.storage[TokenBudgetKey.self] = budget
     app.logger.info("daily token budget: \(dailyTokenLimit)")
 
+    // Print a copy-pasteable URL for the iPads.
+    let port = app.http.server.configuration.port
+    app.logger.notice("MindBender proxy listening")
+    app.logger.notice("  Local: http://127.0.0.1:\(port)")
+    if let lan = LANIP.firstIPv4() {
+        app.logger.notice("  LAN:   http://\(lan):\(port)   <- paste this into each iPad's Settings")
+    } else {
+        app.logger.notice("  LAN:   <no non-loopback IPv4 found — check Wi-Fi>")
+    }
+
     try routes(app)
 }
