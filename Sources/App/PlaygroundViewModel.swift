@@ -44,6 +44,11 @@ public final class PlaygroundViewModel: ObservableObject {
             messages.append(ChatMessage(role: .assistant, content: reply))
             extractedHTML = HTMLExtractor.extract(from: reply)
         } catch {
+            // Server rejected the prompt (profanity / unsafe). Drop the offending
+            // user message from history so it doesn't get re-sent as context.
+            if case ProxyError.refused = error, messages.last?.role == .user {
+                messages.removeLast()
+            }
             lastError = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         }
     }
