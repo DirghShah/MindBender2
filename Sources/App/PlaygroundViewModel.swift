@@ -53,6 +53,10 @@ public final class PlaygroundViewModel: ObservableObject {
         }
     }
 
+    public func fetchUsage() async throws -> UsageResponse {
+        try await client.fetchUsage()
+    }
+
     public func clearChat() {
         messages.removeAll()
         extractedHTML = Self.emptyHTML

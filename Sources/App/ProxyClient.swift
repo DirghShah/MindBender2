@@ -37,6 +37,31 @@ public actor ProxyClient {
         self.baseURL = url
     }
 
+    public func fetchUsage() async throws -> UsageResponse {
+        var request = URLRequest(url: baseURL.appendingPathComponent("usage"))
+        request.httpMethod = "GET"
+        request.timeoutInterval = 10
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await session.data(for: request)
+        } catch {
+            throw ProxyError.transport(error.localizedDescription)
+        }
+        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+            let body = String(data: data, encoding: .utf8) ?? "<binary>"
+            throw ProxyError.badResponse(
+                status: (response as? HTTPURLResponse)?.statusCode ?? 0,
+                body: body
+            )
+        }
+        do {
+            return try JSONDecoder().decode(UsageResponse.self, from: data)
+        } catch {
+            throw ProxyError.decoding(error.localizedDescription)
+        }
+    }
+
     public func send(messages: [ChatMessage]) async throws -> String {
         var request = URLRequest(url: baseURL.appendingPathComponent("chat"))
         request.httpMethod = "POST"

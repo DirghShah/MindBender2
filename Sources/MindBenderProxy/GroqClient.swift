@@ -17,7 +17,13 @@ struct GroqResponse: Content {
         struct Message: Content { let role: String; let content: String }
         let message: Message
     }
+    struct Usage: Content {
+        let prompt_tokens: Int
+        let completion_tokens: Int
+        let total_tokens: Int
+    }
     let choices: [Choice]
+    let usage: Usage?
 }
 
 struct GroqError: Content {
@@ -25,13 +31,17 @@ struct GroqError: Content {
     let error: ErrorBody?
 }
 
+struct GroqResult {
+    let content: String
+    let totalTokens: Int
+}
+
 enum GroqClient {
-    static func send(messages userMessages: [ChatMessage], on req: Request) async throws -> String {
+    static func send(messages userMessages: [ChatMessage], on req: Request) async throws -> GroqResult {
         guard let key = Environment.get("GROQ_API_KEY"), !key.isEmpty else {
             throw Abort(.internalServerError, reason: "GROQ_API_KEY missing")
         }
 
-        // Always prepend the trusted system prompt; ignore any system role from the client.
         var payload: [GroqRequest.Message] = [
             .init(role: "system", content: SystemPrompt.text)
         ]
@@ -62,6 +72,6 @@ enum GroqClient {
         guard let content = decoded.choices.first?.message.content else {
             throw Abort(.badGateway, reason: "LLM returned no choices")
         }
-        return content
+        return GroqResult(content: content, totalTokens: decoded.usage?.total_tokens ?? 0)
     }
 }

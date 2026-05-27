@@ -5,3 +5,4 @@ import Shared
 extension ChatRequest: Content {}
 extension ChatResponse: Content {}
 extension ChatMessage: Content {}
+extension UsageResponse: Content {}
