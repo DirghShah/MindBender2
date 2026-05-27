@@ -1,5 +1,6 @@
 import Foundation
 import Vapor
+import Shared
 
 /// Tracks token usage across the whole class for the day. Resets at UTC midnight.
 /// In-memory only — restarting the proxy zeroes the counter, which is fine for
