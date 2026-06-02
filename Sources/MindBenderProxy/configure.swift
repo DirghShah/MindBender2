@@ -15,6 +15,12 @@ public func configure(_ app: Application) async throws {
         app.http.server.configuration.port = 8080
     }
 
+    // Vapor's default 16 KB body cap is way too small once a chat session
+    // includes a few rounds of HTML replies. routes.swift still caps at
+    // 40 messages / 20K chars and returns a friendly 400 well before this
+    // outer envelope would matter — so we never get bitten by 413 again.
+    app.routes.defaultMaxBodySize = "10mb"
+
     guard let key = Environment.get("GROQ_API_KEY"), !key.isEmpty else {
         app.logger.critical("GROQ_API_KEY is not set. Copy .env.example to .env and fill it in.")
         throw Abort(.internalServerError, reason: "GROQ_API_KEY missing")
